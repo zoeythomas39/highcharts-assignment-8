@@ -2,7 +2,7 @@
 
 This repo contains your assignment starter files, including the [Highcharts](https://www.highcharts.com/blog/products/highcharts/) code from the [download page](https://www.highcharts.com/blog/download/).
 
-Highcharts code version: 8.2.2 (updated October 2020).
+Highcharts code version: 9.2.2 (updated October 19, 2021, at 10:30 a.m.).
 
 You will not need to use those files, however, because you can use a CDN instead. This is the method in your example file, *test_check.html*. What is a CDN? It is a **content delivery network** where files (such as the Highcharts library) can be linked to by you or anyone. A CDN usually means faster load times for all users of your website. [Highcharts hosts its own CDN.](https://code.highcharts.com/)
 

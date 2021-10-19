@@ -1,7 +1,7 @@
 /**
- * @license Highcharts JS v8.2.2 (2020-10-22)
+ * @license Highcharts JS v9.2.2 (2021-08-24)
  *
- * (c) 2009-2019 Torstein Honsi
+ * (c) 2009-2021 Torstein Honsi
  *
  * License: www.highcharts.com/license
  */
@@ -26,10 +26,10 @@
             obj[path] = fn.apply(null, args);
         }
     }
-    _registerModule(_modules, 'Extensions/Themes/SandSignika.js', [_modules['Core/Globals.js'], _modules['Core/Utilities.js']], function (Highcharts, U) {
+    _registerModule(_modules, 'Extensions/Themes/SandSignika.js', [_modules['Core/DefaultOptions.js'], _modules['Core/Globals.js'], _modules['Core/Utilities.js']], function (D, H, U) {
         /* *
          *
-         *  (c) 2010-2020 Torstein Honsi
+         *  (c) 2010-2021 Torstein Honsi
          *
          *  License: www.highcharts.com/license
          *
@@ -38,109 +38,142 @@
          *  !!!!!!! SOURCE GETS TRANSPILED BY TYPESCRIPT. EDIT TS FILE ONLY. !!!!!!!
          *
          * */
-        /* global document */
-        var setOptions = U.setOptions;
-        // Load the fonts
-        Highcharts.createElement('link', {
-            href: 'https://fonts.googleapis.com/css?family=Signika:400,700',
-            rel: 'stylesheet',
-            type: 'text/css'
-        }, null, document.getElementsByTagName('head')[0]);
-        // Add the background image to the container
-        Highcharts.addEvent(Highcharts.Chart, 'afterGetContainer', function () {
-            // eslint-disable-next-line no-invalid-this
-            this.container.style.background =
-                'url(https://www.highcharts.com/samples/graphics/sand.png)';
-        });
-        Highcharts.theme = {
-            colors: ['#f45b5b', '#8085e9', '#8d4654', '#7798BF', '#aaeeee',
-                '#ff0066', '#eeaaee', '#55BF3B', '#DF5353', '#7798BF', '#aaeeee'],
-            chart: {
-                backgroundColor: null,
-                style: {
-                    fontFamily: 'Signika, serif'
-                }
-            },
-            title: {
-                style: {
-                    color: 'black',
-                    fontSize: '16px',
-                    fontWeight: 'bold'
-                }
-            },
-            subtitle: {
-                style: {
-                    color: 'black'
-                }
-            },
-            tooltip: {
-                borderWidth: 0
-            },
-            labels: {
-                style: {
-                    color: '#6e6e70'
-                }
-            },
-            legend: {
-                backgroundColor: '#E0E0E8',
-                itemStyle: {
-                    fontWeight: 'bold',
-                    fontSize: '13px'
-                }
-            },
-            xAxis: {
+        var setOptions = D.setOptions;
+        var addEvent = U.addEvent,
+            createElement = U.createElement;
+        /* *
+         *
+         *  Theme
+         *
+         * */
+        var SandSignikaTheme;
+        (function (SandSignikaTheme) {
+            /* *
+             *
+             *  Constants
+             *
+             * */
+            SandSignikaTheme.options = {
+                colors: ['#f45b5b', '#8085e9', '#8d4654', '#7798BF', '#aaeeee',
+                    '#ff0066', '#eeaaee', '#55BF3B', '#DF5353', '#7798BF', '#aaeeee'],
+                chart: {
+                    backgroundColor: null,
+                    style: {
+                        fontFamily: 'Signika, serif'
+                    }
+                },
+                title: {
+                    style: {
+                        color: 'black',
+                        fontSize: '16px',
+                        fontWeight: 'bold'
+                    }
+                },
+                subtitle: {
+                    style: {
+                        color: 'black'
+                    }
+                },
+                tooltip: {
+                    borderWidth: 0
+                },
                 labels: {
                     style: {
                         color: '#6e6e70'
                     }
-                }
-            },
-            yAxis: {
-                labels: {
-                    style: {
-                        color: '#6e6e70'
+                },
+                legend: {
+                    backgroundColor: '#E0E0E8',
+                    itemStyle: {
+                        fontWeight: 'bold',
+                        fontSize: '13px'
                     }
-                }
-            },
-            plotOptions: {
-                series: {
-                    shadow: true
                 },
-                candlestick: {
-                    lineColor: '#404048'
-                },
-                map: {
-                    shadow: false
-                }
-            },
-            // Highstock specific
-            navigator: {
                 xAxis: {
-                    gridLineColor: '#D0D0D8'
-                }
-            },
-            rangeSelector: {
-                buttonTheme: {
-                    fill: 'white',
-                    stroke: '#C0C0C8',
-                    'stroke-width': 1,
-                    states: {
-                        select: {
-                            fill: '#D0D0D8'
+                    labels: {
+                        style: {
+                            color: '#6e6e70'
                         }
                     }
+                },
+                yAxis: {
+                    labels: {
+                        style: {
+                            color: '#6e6e70'
+                        }
+                    }
+                },
+                plotOptions: {
+                    series: {
+                        shadow: true
+                    },
+                    candlestick: {
+                        lineColor: '#404048'
+                    },
+                    map: {
+                        shadow: false
+                    }
+                },
+                // Highcharts Stock specific
+                navigator: {
+                    xAxis: {
+                        gridLineColor: '#D0D0D8'
+                    }
+                },
+                rangeSelector: {
+                    buttonTheme: {
+                        fill: 'white',
+                        stroke: '#C0C0C8',
+                        'stroke-width': 1,
+                        states: {
+                            select: {
+                                fill: '#D0D0D8'
+                            }
+                        }
+                    }
+                },
+                scrollbar: {
+                    trackBorderColor: '#C0C0C8'
                 }
-            },
-            scrollbar: {
-                trackBorderColor: '#C0C0C8'
+            };
+            /* *
+             *
+             *  Functions
+             *
+             * */
+            /**
+             * Apply the theme.
+             */
+            function apply() {
+                // Load the fonts
+                createElement('link', {
+                    href: 'https://fonts.googleapis.com/css?family=Signika:400,700',
+                    rel: 'stylesheet',
+                    type: 'text/css'
+                }, null, document.getElementsByTagName('head')[0]);
+                // Add the background image to the container
+                addEvent(H.Chart, 'afterGetContainer', function () {
+                    // eslint-disable-next-line no-invalid-this
+                    this.container.style.background =
+                        'url(https://www.highcharts.com/samples/graphics/sand.png)';
+                });
+                // Apply the theme
+                setOptions(SandSignikaTheme.options);
             }
-        };
-        // Apply the theme
-        setOptions(Highcharts.theme);
+            SandSignikaTheme.apply = apply;
+        })(SandSignikaTheme || (SandSignikaTheme = {}));
+        /* *
+         *
+         *  Default Export
+         *
+         * */
 
+        return SandSignikaTheme;
     });
-    _registerModule(_modules, 'masters/themes/sand-signika.src.js', [], function () {
+    _registerModule(_modules, 'masters/themes/sand-signika.src.js', [_modules['Core/Globals.js'], _modules['Extensions/Themes/SandSignika.js']], function (H, SandSignikaTheme) {
 
+        H.theme = SandSignikaTheme.options;
+        SandSignikaTheme.apply();
 
     });
 }));
