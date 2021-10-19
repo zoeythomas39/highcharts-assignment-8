@@ -74,6 +74,8 @@
   font-family: "Unica One", Arial, Helvetica, sans-serif;
   font-size: 12px;
   user-select: none;
+  touch-action: manipulation;
+  outline: none;
 }
 
 .highcharts-root {
@@ -132,6 +134,7 @@
 
 .highcharts-subtitle {
   fill: #E0E0E3;
+  font-size: 1em;
 }
 
 /* Axes */
@@ -833,6 +836,21 @@ input.highcharts-range-selector {
 
 .highcharts-candlestick-series .highcharts-point-up {
   fill: #2a2a2b;
+}
+
+.highcharts-hollowcandlestick-series .highcharts-point-down {
+  fill: #f21313;
+  stroke: #f21313;
+}
+
+.highcharts-hollowcandlestick-series .highcharts-point-down-bearish-up {
+  fill: #06b535;
+  stroke: #06b535;
+}
+
+.highcharts-hollowcandlestick-series .highcharts-point-up {
+  fill: transparent;
+  stroke: #06b535;
 }
 
 .highcharts-ohlc-series .highcharts-point-hover {
