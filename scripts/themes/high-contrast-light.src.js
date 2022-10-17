@@ -1,11 +1,10 @@
 /**
- * @license Highcharts JS v9.2.2 (2021-08-24)
+ * @license Highcharts JS v10.2.1 (2022-08-29)
  *
  * (c) 2009-2021 Highsoft AS
  *
  * License: www.highcharts.com/license
  */
-'use strict';
 (function (factory) {
     if (typeof module === 'object' && module.exports) {
         factory['default'] = factory;
@@ -20,10 +19,20 @@
         factory(typeof Highcharts !== 'undefined' ? Highcharts : undefined);
     }
 }(function (Highcharts) {
+    'use strict';
     var _modules = Highcharts ? Highcharts._modules : {};
     function _registerModule(obj, path, args, fn) {
         if (!obj.hasOwnProperty(path)) {
             obj[path] = fn.apply(null, args);
+
+            if (typeof CustomEvent === 'function') {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        'HighchartsModuleLoaded',
+                        { detail: { path: path, module: obj[path] }
+                    })
+                );
+            }
         }
     }
     _registerModule(_modules, 'Extensions/Themes/HighContrastLight.js', [_modules['Core/DefaultOptions.js']], function (D) {
@@ -57,16 +66,16 @@
              * */
             HighContrastLightTheme.options = {
                 colors: [
-                    '#5f98cf',
-                    '#434348',
-                    '#49a65e',
-                    '#f45b5b',
-                    '#708090',
-                    '#b68c51',
-                    '#397550',
-                    '#c0493d',
-                    '#4f4a7a',
-                    '#b381b3'
+                    '#265FB5',
+                    '#222',
+                    '#698F01',
+                    '#F4693E',
+                    '#4C0684',
+                    '#0FA388',
+                    '#B7104A',
+                    '#AF9023',
+                    '#1A704C',
+                    '#B02FDD'
                 ],
                 navigator: {
                     series: {

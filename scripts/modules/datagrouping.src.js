@@ -1,5 +1,5 @@
 /**
- * @license Highstock JS v9.2.2 (2021-08-24)
+ * @license Highstock JS v10.2.1 (2022-08-29)
  *
  * Data grouping module
  *
@@ -7,7 +7,6 @@
  *
  * License: www.highcharts.com/license
  */
-'use strict';
 (function (factory) {
     if (typeof module === 'object' && module.exports) {
         factory['default'] = factory;
@@ -22,10 +21,20 @@
         factory(typeof Highcharts !== 'undefined' ? Highcharts : undefined);
     }
 }(function (Highcharts) {
+    'use strict';
     var _modules = Highcharts ? Highcharts._modules : {};
     function _registerModule(obj, path, args, fn) {
         if (!obj.hasOwnProperty(path)) {
             obj[path] = fn.apply(null, args);
+
+            if (typeof CustomEvent === 'function') {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        'HighchartsModuleLoaded',
+                        { detail: { path: path, module: obj[path] }
+                    })
+                );
+            }
         }
     }
     _registerModule(_modules, 'Extensions/DataGrouping.js', [_modules['Core/Axis/Axis.js'], _modules['Core/Axis/DateTimeAxis.js'], _modules['Core/FormatUtilities.js'], _modules['Core/Globals.js'], _modules['Core/Series/Point.js'], _modules['Core/Series/Series.js'], _modules['Core/Tooltip.js'], _modules['Core/DefaultOptions.js'], _modules['Core/Utilities.js']], function (Axis, DateTimeAxis, F, H, Point, Series, Tooltip, D, U) {
@@ -50,32 +59,6 @@
             isNumber = U.isNumber,
             merge = U.merge,
             pick = U.pick;
-        /**
-         * @typedef {"average"|"averages"|"open"|"high"|"low"|"close"|"sum"} Highcharts.DataGroupingApproximationValue
-         */
-        /**
-         * The position of the point inside the group.
-         *
-         * @typedef    {"start"|"middle"|"end"} Highcharts.DataGroupingAnchor
-         */
-        /**
-         * The position of the first or last point in the series inside the group.
-         *
-         * @typedef    {"start"|"middle"|"end"|"firstPoint"|"lastPoint"} Highcharts.DataGroupingAnchorExtremes
-         */
-        /**
-         * @interface Highcharts.DataGroupingInfoObject
-         */ /**
-        * @name Highcharts.DataGroupingInfoObject#length
-        * @type {number}
-        */ /**
-        * @name Highcharts.DataGroupingInfoObject#options
-        * @type {Highcharts.SeriesOptionsType|undefined}
-        */ /**
-        * @name Highcharts.DataGroupingInfoObject#start
-        * @type {number}
-        */
-        ''; // detach doclets above
         /* ************************************************************************** *
          *  Start data grouping module                                                *
          * ************************************************************************** */
@@ -151,8 +134,18 @@
                     arr[arr.length - 1] :
                     (arr.hasNulls ? null : void 0);
             },
-            // ohlc and range are special cases where a multidimensional array is
-            // input and an array is output
+            // HLC, OHLC and range are special cases where a multidimensional array is
+            // input and an array is output.
+            hlc: function (high, low, close) {
+                high = approximations.high(high);
+                low = approximations.low(low);
+                close = approximations.close(close);
+                if (isNumber(high) ||
+                    isNumber(low) ||
+                    isNumber(close)) {
+                    return [high, low, close];
+                }
+            },
             ohlc: function (open, high, low, close) {
                 open = approximations.open(open);
                 high = approximations.high(high);
@@ -164,7 +157,6 @@
                     isNumber(close)) {
                     return [open, high, low, close];
                 }
-                // else, return is undefined
             },
             range: function (low, high) {
                 low = approximations.low(low);
@@ -178,7 +170,7 @@
                 // else, return is undefined
             }
         };
-        var applyGrouping = function () {
+        var applyGrouping = function (hasExtemesChanged) {
                 var series = this,
             chart = series.chart,
             options = series.options,
@@ -197,9 +189,9 @@
             if (groupingEnabled && !series.requireSorting) {
                 series.requireSorting = revertRequireSorting = true;
             }
-            // Skip if processData returns false or if grouping is disabled (in that
-            // order)
-            skip = skipDataGrouping(series) || !groupingEnabled;
+            // Skip if skipDataGrouping method returns false or if grouping is disabled
+            // (in that order).
+            skip = skipDataGrouping(series, hasExtemesChanged) === false || !groupingEnabled;
             // Revert original requireSorting value if changed
             if (revertRequireSorting) {
                 series.requireSorting = false;
@@ -257,13 +249,17 @@
                         groupedXData = groupedData.groupedXData,
                         groupedYData = groupedData.groupedYData,
                         gapSize = 0;
-                    // The smoothed option is deprecated, instead,
-                    // there is a fallback to the new anchoring mechanism. #12455.
-                    if (dataGroupingOptions && dataGroupingOptions.smoothed && groupedXData.length) {
+                    // The smoothed option is deprecated, instead, there is a fallback
+                    // to the new anchoring mechanism. #12455.
+                    if (dataGroupingOptions &&
+                        dataGroupingOptions.smoothed &&
+                        groupedXData.length) {
                         dataGroupingOptions.firstAnchor = 'firstPoint';
                         dataGroupingOptions.anchor = 'middle';
                         dataGroupingOptions.lastAnchor = 'lastPoint';
-                        error(32, false, chart, { 'dataGrouping.smoothed': 'use dataGrouping.anchor' });
+                        error(32, false, chart, {
+                            'dataGrouping.smoothed': 'use dataGrouping.anchor'
+                        });
                     }
                     anchorPoints(series, groupedXData, xMax);
                     // Record what data grouping values were used
@@ -310,13 +306,13 @@
                         (currentDataGrouping && currentDataGrouping.totalRange);
             }
         };
-        var skipDataGrouping = function (series) {
-                if (series.isCartesian &&
+        var skipDataGrouping = function (series,
+            force) {
+                return !(series.isCartesian &&
                     !series.isDirty &&
                     !series.xAxis.isDirty &&
-                    !series.yAxis.isDirty) {
-                    return false;
-            }
+                    !series.yAxis.isDirty &&
+                    !force);
         };
         var groupData = function (xData,
             yData,
@@ -340,7 +336,8 @@
             pointArrayMap = series.pointArrayMap,
             pointArrayMapLength = pointArrayMap && pointArrayMap.length,
             extendedPointArrayMap = ['x'].concat(pointArrayMap || ['y']),
-            groupAll = this.options.dataGrouping && this.options.dataGrouping.groupAll,
+            groupAll = (this.options.dataGrouping &&
+                    this.options.dataGrouping.groupAll),
             pos = 0,
             start = 0,
             valuesLen,
@@ -470,7 +467,7 @@
             xMax) {
                 var options = series.options,
             dataGroupingOptions = options.dataGrouping,
-            totalRange = series.currentDataGrouping && series.currentDataGrouping.gapSize;
+            totalRange = (series.currentDataGrouping && series.currentDataGrouping.gapSize);
             var i;
             // DataGrouping x-coordinates.
             if (dataGroupingOptions && series.xData && totalRange && series.groupMap) {
@@ -482,9 +479,9 @@
                     anchor);
                 // Anchor points that are not extremes.
                 if (anchor && anchor !== 'start') {
-                    var shiftInterval = totalRange *
+                    var shiftInterval = (totalRange *
                             { middle: 0.5,
-                        end: 1 }[anchor];
+                        end: 1 }[anchor]);
                     i = groupedXData.length - 1;
                     while (i-- && i > 0) {
                         groupedXData[i] += shiftInterval;
@@ -630,7 +627,10 @@
                 ohlc: {
                     groupPixelWidth: 5
                 },
-                // Move to HeikinAshiSeries.ts aftre refactoring data grouping.
+                hlc: {
+                    groupPixelWidth: 5
+                    // Move to HeikinAshiSeries.ts aftre refactoring data grouping.
+                },
                 heikinashi: {
                     groupPixelWidth: 10
                 }
@@ -672,6 +672,9 @@
             }
             if (this.is('ohlc')) {
                 return 'ohlc';
+            }
+            if (this.is('hlc')) {
+                return 'hlc';
             }
             if (this.is('column')) {
                 return 'sum';
@@ -738,19 +741,22 @@
          *
          * @function Highcharts.Axis#applyGrouping
          */
-        Axis.prototype.applyGrouping = function () {
+        Axis.prototype.applyGrouping = function (e) {
             var axis = this,
                 series = axis.series;
+            // Reset the groupPixelWidth for all series, #17141.
             series.forEach(function (series) {
-                // Reset the groupPixelWidth, then calculate if needed.
                 series.groupPixelWidth = void 0; // #2110
-                series.groupPixelWidth = axis.getGroupPixelWidth && axis.getGroupPixelWidth();
+            });
+            series.forEach(function (series) {
+                series.groupPixelWidth = (axis.getGroupPixelWidth &&
+                    axis.getGroupPixelWidth());
                 if (series.groupPixelWidth) {
                     series.hasProcessed = true; // #2692
                 }
                 // Fire independing on series.groupPixelWidth to always set a proper
                 // dataGrouping state, (#16238)
-                series.applyGrouping();
+                series.applyGrouping(!!e.hasExtemesChanged);
             });
         };
         // Get the data grouping pixel width based on the greatest defined individual
@@ -783,8 +789,8 @@
                     // Execute grouping if the amount of points is greater than the
                     // limit defined in groupPixelWidth
                     if (series[i].groupPixelWidth ||
-                        dataLength >
-                            (this.chart.plotSizeX / groupPixelWidth) ||
+                        (dataLength >
+                            (this.chart.plotSizeX / groupPixelWidth)) ||
                         (dataLength && dgOptions.forced)) {
                         doGrouping = true;
                     }
@@ -829,8 +835,11 @@
             }
             else {
                 this.chart.options.series.forEach(function (seriesOptions) {
-                    seriesOptions.dataGrouping = dataGrouping;
-                }, false);
+                    // Merging dataGrouping options with already defined options #16759
+                    seriesOptions.dataGrouping = typeof dataGrouping === 'boolean' ?
+                        dataGrouping :
+                        merge(dataGrouping, seriesOptions.dataGrouping);
+                });
             }
             // Clear ordinal slope, so we won't accidentaly use the old one (#7827)
             if (axis.ordinal) {
@@ -925,10 +934,10 @@
                 type = this.type,
                 plotOptions = this.chart.options.plotOptions,
                 defaultOptions = D.defaultOptions.plotOptions[type].dataGrouping, 
-                // External series, for example technical indicators should also
-                // inherit commonOptions which are not available outside this module
-                baseOptions = this.useCommonDataGrouping && commonOptions;
-            if (specificOptions[type] || baseOptions) { // #1284
+                // External series, for example technical indicators should also inherit
+                // commonOptions which are not available outside this module
+                baseOptions = (this.useCommonDataGrouping && commonOptions);
+            if (plotOptions && (specificOptions[type] || baseOptions)) { // #1284
                 if (!defaultOptions) {
                     defaultOptions = merge(commonOptions, specificOptions[type]);
                 }
@@ -949,8 +958,72 @@
                 series.hasProcessed = false;
             });
         });
+        /* *
+         *
+         *  Default Export
+         *
+         * */
+        // @todo move to master
         H.dataGrouping = dataGrouping;
-        /* eslint-enable no-invalid-this, valid-jsdoc */
+        /* *
+         *
+         *  API Declarations
+         *
+         * */
+        /**
+         * @typedef {"average"|"averages"|"open"|"high"|"low"|"close"|"sum"} Highcharts.DataGroupingApproximationValue
+         */
+        /**
+         * The position of the point inside the group.
+         *
+         * @typedef    {"start"|"middle"|"end"} Highcharts.DataGroupingAnchor
+         */
+        /**
+         * The position of the first or last point in the series inside the group.
+         *
+         * @typedef    {"start"|"middle"|"end"|"firstPoint"|"lastPoint"} Highcharts.DataGroupingAnchorExtremes
+         */
+        /**
+         * Highcharts Stock only.
+         *
+         * @product highstock
+         * @interface Highcharts.DataGroupingInfoObject
+         */ /**
+        * @name Highcharts.DataGroupingInfoObject#length
+        * @type {number}
+        */ /**
+        * @name Highcharts.DataGroupingInfoObject#options
+        * @type {Highcharts.SeriesOptionsType|undefined}
+        */ /**
+        * @name Highcharts.DataGroupingInfoObject#start
+        * @type {number}
+        */
+        /**
+         * Highcharts Stock only. If a point object is created by data
+         * grouping, it doesn't reflect actual points in the raw
+         * data. In this case, the `dataGroup` property holds
+         * information that points back to the raw data.
+         *
+         * - `dataGroup.start` is the index of the first raw data
+         *   point in the group.
+         *
+         * - `dataGroup.length` is the amount of points in the
+         *   group.
+         *
+         * @sample stock/members/point-datagroup
+         *         Click to inspect raw data points
+         *
+         * @product highstock
+         *
+         * @name Highcharts.Point#dataGroup
+         * @type {Highcharts.DataGroupingInfoObject|undefined}
+         */
+        (''); // detach doclets above
+        /* *
+         *
+         *  API Options
+         *
+         * */
         /**
          * Data grouping is the concept of sampling the data values into larger
          * blocks in order to ease readability and increase performance of the
@@ -1022,7 +1095,7 @@
          * from the raw data.
          *
          * Defaults to `average` for line-type series, `sum` for columns, `range`
-         * for range series and `ohlc` for OHLC and candlestick.
+         * for range series, `hlc` for HLC, and `ohlc` for OHLC and candlestick.
          *
          * @sample {highstock} stock/plotoptions/series-datagrouping-approximation
          *         Approximation callback with custom data
@@ -1061,7 +1134,7 @@
          * to two weeks, the second and third item of the week array are used,
          *  and applied to the start and end date of the time span.
          *
-         * @type      {object}
+         * @type      {Object}
          * @apioption plotOptions.series.dataGrouping.dateTimeLabelFormats
          */
         /**

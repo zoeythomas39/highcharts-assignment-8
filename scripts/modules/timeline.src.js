@@ -1,5 +1,5 @@
 /**
- * @license Highcharts JS v9.2.2 (2021-08-24)
+ * @license Highcharts JS v10.2.1 (2022-08-29)
  *
  * Timeline series
  *
@@ -8,7 +8,6 @@
  *
  * License: www.highcharts.com/license
  */
-'use strict';
 (function (factory) {
     if (typeof module === 'object' && module.exports) {
         factory['default'] = factory;
@@ -23,10 +22,20 @@
         factory(typeof Highcharts !== 'undefined' ? Highcharts : undefined);
     }
 }(function (Highcharts) {
+    'use strict';
     var _modules = Highcharts ? Highcharts._modules : {};
     function _registerModule(obj, path, args, fn) {
         if (!obj.hasOwnProperty(path)) {
             obj[path] = fn.apply(null, args);
+
+            if (typeof CustomEvent === 'function') {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        'HighchartsModuleLoaded',
+                        { detail: { path: path, module: obj[path] }
+                    })
+                );
+            }
         }
     }
     _registerModule(_modules, 'Series/Timeline/TimelinePoint.js', [_modules['Core/Series/Point.js'], _modules['Core/Series/SeriesRegistry.js'], _modules['Core/Utilities.js']], function (Point, SeriesRegistry, U) {
@@ -226,7 +235,7 @@
 
         return TimelinePoint;
     });
-    _registerModule(_modules, 'Series/Timeline/TimelineSeries.js', [_modules['Core/Legend/LegendSymbol.js'], _modules['Core/Color/Palette.js'], _modules['Core/Series/SeriesRegistry.js'], _modules['Core/Renderer/SVG/SVGElement.js'], _modules['Series/Timeline/TimelinePoint.js'], _modules['Core/Utilities.js']], function (LegendSymbol, palette, SeriesRegistry, SVGElement, TimelinePoint, U) {
+    _registerModule(_modules, 'Series/Timeline/TimelineSeries.js', [_modules['Core/Legend/LegendSymbol.js'], _modules['Core/Series/SeriesRegistry.js'], _modules['Core/Renderer/SVG/SVGElement.js'], _modules['Series/Timeline/TimelinePoint.js'], _modules['Core/Utilities.js']], function (LegendSymbol, SeriesRegistry, SVGElement, TimelinePoint, U) {
         /* *
          *
          *  Timeline Series.
@@ -550,6 +559,8 @@
              *               boostBlending
              * @requires     modules/timeline
              * @optionparent plotOptions.timeline
+             *
+             * @private
              */
             TimelineSeries.defaultOptions = merge(LineSeries.defaultOptions, {
                 colorByPoint: true,
@@ -589,11 +600,11 @@
                      *         Alternate disabled
                      */
                     alternate: true,
-                    backgroundColor: palette.backgroundColor,
+                    backgroundColor: "#ffffff" /* Palette.backgroundColor */,
                     borderWidth: 1,
-                    borderColor: palette.neutralColor40,
+                    borderColor: "#999999" /* Palette.neutralColor40 */,
                     borderRadius: 3,
-                    color: palette.neutralColor80,
+                    color: "#333333" /* Palette.neutralColor80 */,
                     /**
                      * The color of the line connecting the data label to the point.
                      * The default color is the same as the point's color.

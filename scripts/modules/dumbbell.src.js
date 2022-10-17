@@ -1,11 +1,10 @@
 /**
- * @license Highcharts JS v9.2.2 (2021-08-24)
+ * @license Highcharts JS v10.2.1 (2022-08-29)
  *
  * (c) 2009-2021 Sebastian Bochan, Rafal Sebestjanski
  *
  * License: www.highcharts.com/license
  */
-'use strict';
 (function (factory) {
     if (typeof module === 'object' && module.exports) {
         factory['default'] = factory;
@@ -20,13 +19,23 @@
         factory(typeof Highcharts !== 'undefined' ? Highcharts : undefined);
     }
 }(function (Highcharts) {
+    'use strict';
     var _modules = Highcharts ? Highcharts._modules : {};
     function _registerModule(obj, path, args, fn) {
         if (!obj.hasOwnProperty(path)) {
             obj[path] = fn.apply(null, args);
+
+            if (typeof CustomEvent === 'function') {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        'HighchartsModuleLoaded',
+                        { detail: { path: path, module: obj[path] }
+                    })
+                );
+            }
         }
     }
-    _registerModule(_modules, 'Series/AreaRange/AreaRangePoint.js', [_modules['Series/Area/AreaSeries.js'], _modules['Core/Series/Point.js'], _modules['Core/Utilities.js']], function (AreaSeries, Point, U) {
+    _registerModule(_modules, 'Series/AreaRange/AreaRangePoint.js', [_modules['Core/Series/SeriesRegistry.js'], _modules['Core/Utilities.js']], function (SeriesRegistry, U) {
         /* *
          *
          *  (c) 2010-2021 Torstein Honsi
@@ -52,7 +61,9 @@
                 d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
             };
         })();
-        var pointProto = Point.prototype;
+        var _a = SeriesRegistry.seriesTypes.area.prototype,
+            AreaPoint = _a.pointClass,
+            areaProto = _a.pointClass.prototype;
         var defined = U.defined,
             isNumber = U.isNumber;
         /* *
@@ -70,7 +81,17 @@
                  * */
                 var _this = _super !== null && _super.apply(this,
                     arguments) || this;
+                /**
+                 * Range series only. The high or maximum value for each data point.
+                 * @name Highcharts.Point#high
+                 * @type {number|undefined}
+                 */
                 _this.high = void 0;
+                /**
+                 * Range series only. The low or minimum value for each data point.
+                 * @name Highcharts.Point#low
+                 * @type {number|undefined}
+                 */
                 _this.low = void 0;
                 _this.options = void 0;
                 _this.plotHigh = void 0;
@@ -112,7 +133,7 @@
                     this.plotX = this.plotHighX;
                 }
                 // Top state:
-                pointProto.setState.apply(this, arguments);
+                areaProto.setState.apply(this, arguments);
                 this.state = prevState;
                 // Now restore defaults
                 this.plotY = this.plotLow;
@@ -127,18 +148,18 @@
                     // to avoid reference duplication (#7021)
                     series.lowerStateMarkerGraphic = void 0;
                 }
-                pointProto.setState.apply(this, arguments);
+                areaProto.setState.apply(this, arguments);
             };
             AreaRangePoint.prototype.haloPath = function () {
-                var isPolar = this.series.chart.polar,
-                    path = [];
+                var isPolar = this.series.chart.polar;
+                var path = [];
                 // Bottom halo
                 this.plotY = this.plotLow;
                 if (isPolar) {
                     this.plotX = this.plotLowX;
                 }
                 if (this.isInside) {
-                    path = pointProto.haloPath.apply(this, arguments);
+                    path = areaProto.haloPath.apply(this, arguments);
                 }
                 // Top halo
                 this.plotY = this.plotHigh;
@@ -146,7 +167,7 @@
                     this.plotX = this.plotHighX;
                 }
                 if (this.isTopInside) {
-                    path = path.concat(pointProto.haloPath.apply(this, arguments));
+                    path = path.concat(areaProto.haloPath.apply(this, arguments));
                 }
                 return path;
             };
@@ -154,10 +175,10 @@
                 return isNumber(this.low) && isNumber(this.high);
             };
             return AreaRangePoint;
-        }(AreaSeries.prototype.pointClass));
+        }(AreaPoint));
         /* *
          *
-         *  Default export
+         *  Default Export
          *
          * */
 
@@ -224,7 +245,6 @@
              * @private
              * @param {Highcharts.Point} this The point to inspect.
              *
-             * @return {void}
              */
             DumbbellPoint.prototype.setState = function () {
                 var point = this,
@@ -289,7 +309,7 @@
 
         return DumbbellPoint;
     });
-    _registerModule(_modules, 'Series/Dumbbell/DumbbellSeries.js', [_modules['Series/Column/ColumnSeries.js'], _modules['Series/Dumbbell/DumbbellPoint.js'], _modules['Core/Globals.js'], _modules['Core/Color/Palette.js'], _modules['Core/Series/Series.js'], _modules['Core/Series/SeriesRegistry.js'], _modules['Core/Renderer/SVG/SVGRenderer.js'], _modules['Core/Utilities.js']], function (ColumnSeries, DumbbellPoint, H, palette, Series, SeriesRegistry, SVGRenderer, U) {
+    _registerModule(_modules, 'Series/Dumbbell/DumbbellSeries.js', [_modules['Series/Column/ColumnSeries.js'], _modules['Series/Dumbbell/DumbbellPoint.js'], _modules['Core/Globals.js'], _modules['Core/Series/Series.js'], _modules['Core/Series/SeriesRegistry.js'], _modules['Core/Renderer/SVG/SVGRenderer.js'], _modules['Core/Utilities.js']], function (ColumnSeries, DumbbellPoint, H, Series, SeriesRegistry, SVGRenderer, U) {
         /* *
          *
          *  (c) 2010-2021 Sebastian Bochan, Rafal Sebestjanski
@@ -453,7 +473,6 @@
              *
              * @param {Highcharts.Point} point The point to inspect.
              *
-             * @return {void}
              */
             DumbbellSeries.prototype.drawConnector = function (point) {
                 var series = this,
@@ -499,7 +518,6 @@
              *
              * @param {Highcharts.Series} this The series of points.
              *
-             * @return {void}
              */
             DumbbellSeries.prototype.translate = function () {
                 // Calculate shapeargs
@@ -525,7 +543,6 @@
              *
              * @param {Highcharts.Series} this The series of points.
              *
-             * @return {void}
              */
             DumbbellSeries.prototype.drawPoints = function () {
                 var series = this,
@@ -647,7 +664,7 @@
                  * @since 8.0.0
                  * @product   highcharts highstock
                  */
-                lowColor: palette.neutralColor80,
+                lowColor: "#333333" /* Palette.neutralColor80 */,
                 /**
                  * Color of the line that connects the dumbbell point's values.
                  * By default it is the series' color.
@@ -787,7 +804,7 @@
          *
          * @type        {Highcharts.ColorString|Highcharts.GradientColorObject|Highcharts.PatternObject}
          * @since       8.0.0
-         * @default     ${palette.neutralColor80}
+         * @default     #333333
          * @product     highcharts highstock
          * @apioption   series.dumbbell.data.lowColor
          */

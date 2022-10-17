@@ -1,5 +1,5 @@
 /**
- * @license Highcharts JS v9.2.2 (2021-08-24)
+ * @license Highcharts JS v10.2.1 (2022-08-29)
  *
  * ColorAxis module
  *
@@ -7,7 +7,6 @@
  *
  * License: www.highcharts.com/license
  */
-'use strict';
 (function (factory) {
     if (typeof module === 'object' && module.exports) {
         factory['default'] = factory;
@@ -22,100 +21,23 @@
         factory(typeof Highcharts !== 'undefined' ? Highcharts : undefined);
     }
 }(function (Highcharts) {
+    'use strict';
     var _modules = Highcharts ? Highcharts._modules : {};
     function _registerModule(obj, path, args, fn) {
         if (!obj.hasOwnProperty(path)) {
             obj[path] = fn.apply(null, args);
+
+            if (typeof CustomEvent === 'function') {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        'HighchartsModuleLoaded',
+                        { detail: { path: path, module: obj[path] }
+                    })
+                );
+            }
         }
     }
-    _registerModule(_modules, 'Mixins/ColorSeries.js', [], function () {
-        /* *
-         *
-         *  (c) 2010-2021 Torstein Honsi
-         *
-         *  License: www.highcharts.com/license
-         *
-         *  !!!!!!! SOURCE GETS TRANSPILED BY TYPESCRIPT. EDIT TS FILE ONLY. !!!!!!!
-         *
-         * */
-        /**
-         * Mixin for maps and heatmaps
-         *
-         * @private
-         * @mixin Highcharts.colorPointMixin
-         */
-        var colorPointMixin = {
-                /* eslint-disable valid-jsdoc */
-                /**
-                 * Set the visibility of a single point
-                 * @private
-                 * @function Highcharts.colorPointMixin.setVisible
-                 * @param {boolean} visible
-                 * @return {void}
-                 */
-                setVisible: function (vis) {
-                    var point = this,
-            method = vis ? 'show' : 'hide';
-                point.visible = point.options.visible = Boolean(vis);
-                // Show and hide associated elements
-                ['graphic', 'dataLabel'].forEach(function (key) {
-                    if (point[key]) {
-                        point[key][method]();
-                    }
-                });
-                this.series.buildKDTree(); // rebuild kdtree #13195
-            }
-            /* eslint-enable valid-jsdoc */
-        };
-        /**
-         * @private
-         * @mixin Highcharts.colorSeriesMixin
-         */
-        var colorSeriesMixin = {
-                optionalAxis: 'colorAxis',
-                /* eslint-disable valid-jsdoc */
-                /**
-                 * In choropleth maps,
-            the color is a result of the value,
-            so this needs
-                 * translation too
-                 * @private
-                 * @function Highcharts.colorSeriesMixin.translateColors
-                 * @return {void}
-                 */
-                translateColors: function () {
-                    var series = this,
-            points = this.data.length ? this.data : this.points,
-            nullColor = this.options.nullColor,
-            colorAxis = this.colorAxis,
-            colorKey = this.colorKey;
-                points.forEach(function (point) {
-                    var value = point.getNestedProperty(colorKey),
-                        color;
-                    color = point.options.color ||
-                        (point.isNull || point.value === null ?
-                            nullColor :
-                            (colorAxis && typeof value !== 'undefined') ?
-                                colorAxis.toColor(value, point) :
-                                point.color || series.color);
-                    if (color && point.color !== color) {
-                        point.color = color;
-                        if (series.options.legendType === 'point' && point.legendItem) {
-                            series.chart.legend.colorizeItem(point, point.visible);
-                        }
-                    }
-                });
-            }
-            /* eslint-enable valid-jsdoc */
-        };
-        var exports = {
-                colorPointMixin: colorPointMixin,
-                colorSeriesMixin: colorSeriesMixin
-            };
-
-        return exports;
-    });
-    _registerModule(_modules, 'Core/Axis/Color/ColorAxisComposition.js', [_modules['Core/Color/Color.js'], _modules['Mixins/ColorSeries.js'], _modules['Core/Utilities.js']], function (Color, ColorSeriesMixins, U) {
+    _registerModule(_modules, 'Core/Axis/Color/ColorAxisComposition.js', [_modules['Core/Color/Color.js'], _modules['Core/Utilities.js']], function (Color, U) {
         /* *
          *
          *  (c) 2010-2021 Torstein Honsi
@@ -126,8 +48,6 @@
          *
          * */
         var color = Color.parse;
-        var colorPointMixin = ColorSeriesMixins.colorPointMixin,
-            colorSeriesMixin = ColorSeriesMixins.colorSeriesMixin;
         var addEvent = U.addEvent,
             extend = U.extend,
             merge = U.merge,
@@ -140,6 +60,11 @@
          * */
         var ColorAxisComposition;
         (function (ColorAxisComposition) {
+            /* *
+             *
+             *  Declarations
+             *
+             * */
             /* *
              *
              *  Constants
@@ -169,7 +94,9 @@
                     composedClasses.push(ChartClass);
                     var chartProto = ChartClass.prototype;
                     chartProto.collectionsWithUpdate.push('colorAxis');
-                    chartProto.collectionsWithInit.colorAxis = [chartProto.addColorAxis];
+                    chartProto.collectionsWithInit.colorAxis = [
+                        chartProto.addColorAxis
+                    ];
                     addEvent(ChartClass, 'afterGetAxes', onChartAfterGetAxes);
                     wrapChartCreateAxis(ChartClass);
                 }
@@ -187,8 +114,13 @@
                 }
                 if (composedClasses.indexOf(SeriesClass) === -1) {
                     composedClasses.push(SeriesClass);
-                    extend(SeriesClass.prototype, colorSeriesMixin);
-                    extend(SeriesClass.prototype.pointClass.prototype, colorPointMixin);
+                    extend(SeriesClass.prototype, {
+                        optionalAxis: 'colorAxis',
+                        translateColors: seriesTranslateColors
+                    });
+                    extend(SeriesClass.prototype.pointClass.prototype, {
+                        setVisible: pointSetVisible
+                    });
                     addEvent(SeriesClass, 'afterTranslate', onSeriesAfterTranslate);
                     addEvent(SeriesClass, 'bindAxes', onSeriesBindAxes);
                 }
@@ -309,6 +241,53 @@
                 }
             }
             /**
+             * Set the visibility of a single point
+             * @private
+             * @function Highcharts.colorPointMixin.setVisible
+             * @param {boolean} visible
+             */
+            function pointSetVisible(vis) {
+                var point = this,
+                    method = vis ? 'show' : 'hide';
+                point.visible = point.options.visible = Boolean(vis);
+                // Show and hide associated elements
+                ['graphic', 'dataLabel'].forEach(function (key) {
+                    if (point[key]) {
+                        point[key][method]();
+                    }
+                });
+                this.series.buildKDTree(); // rebuild kdtree #13195
+            }
+            ColorAxisComposition.pointSetVisible = pointSetVisible;
+            /**
+             * In choropleth maps, the color is a result of the value, so this needs
+             * translation too
+             * @private
+             * @function Highcharts.colorSeriesMixin.translateColors
+             */
+            function seriesTranslateColors() {
+                var series = this,
+                    points = this.data.length ? this.data : this.points,
+                    nullColor = this.options.nullColor,
+                    colorAxis = this.colorAxis,
+                    colorKey = this.colorKey;
+                points.forEach(function (point) {
+                    var value = point.getNestedProperty(colorKey),
+                        color = point.options.color || (point.isNull || point.value === null ?
+                            nullColor :
+                            (colorAxis && typeof value !== 'undefined') ?
+                                colorAxis.toColor(value,
+                        point) :
+                                point.color || series.color);
+                    if (color && point.color !== color) {
+                        point.color = color;
+                        if (series.options.legendType === 'point' && point.legendItem) {
+                            series.chart.legend.colorizeItem(point, point.visible);
+                        }
+                    }
+                });
+            }
+            /**
              * @private
              */
             function wrapChartCreateAxis(ChartClass) {
@@ -360,7 +339,7 @@
 
         return ColorAxisComposition;
     });
-    _registerModule(_modules, 'Core/Axis/Color/ColorAxisDefaults.js', [_modules['Core/Color/Palette.js']], function (Palette) {
+    _registerModule(_modules, 'Core/Axis/Color/ColorAxisDefaults.js', [], function () {
         /* *
          *
          *  (c) 2010-2021 Torstein Honsi
@@ -423,7 +402,8 @@
          *               categories, crosshair, dateTimeLabelFormats, height, left,
          *               lineWidth, linkedTo, maxZoom, minRange, minTickInterval,
          *               offset, opposite, pane, plotBands, plotLines,
-         *               reversedStacks, showEmpty, title, top, width, zoomEnabled
+         *               reversedStacks, scrollbar, showEmpty, title, top, width,
+         *               zoomEnabled
          * @product      highcharts highstock highmaps
          * @type         {*|Array<*>}
          * @optionparent colorAxis
@@ -658,7 +638,7 @@
                      * @type    {Highcharts.ColorString|Highcharts.GradientColorObject|Highcharts.PatternObject}
                      * @product highcharts highstock highmaps
                      */
-                    color: Palette.neutralColor40
+                    color: "#999999" /* Palette.neutralColor40 */
                 },
                 /**
                  * The axis labels show the number for each tick.
@@ -700,7 +680,7 @@
                  * @type    {Highcharts.ColorString|Highcharts.GradientColorObject|Highcharts.PatternObject}
                  * @product highcharts highstock highmaps
                  */
-                minColor: Palette.highlightColor10,
+                minColor: "#e6ebf5" /* Palette.highlightColor10 */,
                 /**
                  * The color to represent the maximum of the color axis. Unless
                  * [dataClasses](#colorAxis.dataClasses) or
@@ -719,7 +699,7 @@
                  * @type    {Highcharts.ColorString|Highcharts.GradientColorObject|Highcharts.PatternObject}
                  * @product highcharts highstock highmaps
                  */
-                maxColor: Palette.highlightColor100,
+                maxColor: "#003399" /* Palette.highlightColor100 */,
                 /**
                  * Color stops for the gradient of a scalar color axis. Use this in
                  * cases where a linear gradient between a `minColor` and `maxColor`
@@ -727,6 +707,10 @@
                  * first item is a float between 0 and 1 assigning the relative
                  * position in the gradient, and the second item is the color.
                  *
+                 * @sample highcharts/coloraxis/coloraxis-stops/
+                 *         Color axis stops
+                 * @sample highcharts/coloraxis/color-key-with-stops/
+                 *         Color axis stops with custom colorKey
                  * @sample {highmaps} maps/demo/heatmap/
                  *         Heatmap with three color stops
                  *
@@ -861,7 +845,8 @@
                 var _this = _super.call(this,
                     chart,
                     userOptions) || this;
-                _this.beforePadding = false; // Prevents unnecessary padding with `hc-more`
+                // Prevents unnecessary padding with `hc-more`
+                _this.beforePadding = false;
                 _this.chart = void 0;
                 _this.coll = 'colorAxis';
                 _this.dataClasses = void 0;
@@ -1114,6 +1099,16 @@
                     axis.axisParent = group;
                     // Call the base
                     _super.prototype.getOffset.call(this);
+                    var legend_1 = this.chart.legend;
+                    // Adds `maxLabelLength` needed for label padding corrections done
+                    // by `render()` and `getMargins()` (#15551).
+                    legend_1.allItems.forEach(function (item) {
+                        if (item instanceof ColorAxis) {
+                            item.drawLegendSymbol(legend_1, item);
+                        }
+                    });
+                    legend_1.render();
+                    this.chart.getMargins(true);
                     // First time only
                     if (!axis.added) {
                         axis.added = true;
@@ -1161,16 +1156,25 @@
                     horiz ? ColorAxis.defaultLegendLength : 12);
                 var height = pick(legendOptions.symbolHeight,
                     horiz ? 12 : ColorAxis.defaultLegendLength);
-                var labelPadding = pick(legendOptions.labelPadding,
+                var labelPadding = pick(
+                    // @todo: This option is not documented, nor implemented when
+                    // vertical
+                    legendOptions.labelPadding,
                     horiz ? 16 : 30);
                 var itemDistance = pick(legendOptions.itemDistance, 10);
                 this.setLegendColor();
                 // Create the gradient
-                item.legendSymbol = this.chart.renderer.rect(0, legend.baseline - 11, width, height).attr({
-                    zIndex: 1
-                }).add(item.legendGroup);
+                if (!item.legendSymbol) {
+                    item.legendSymbol = this.chart.renderer.rect(0, legend.baseline - 11, width, height).attr({
+                        zIndex: 1
+                    }).add(item.legendGroup);
+                }
                 // Set how much space this legend item takes up
-                axis.legendItemWidth = width + padding + (horiz ? itemDistance : labelPadding);
+                axis.legendItemWidth = (width +
+                    padding +
+                    (horiz ?
+                        itemDistance :
+                        this.options.labels.x + this.maxLabelLength));
                 axis.legendItemHeight = height + padding + (horiz ? labelPadding : 0);
             };
             /**
@@ -1262,8 +1266,8 @@
              * @param {Highcharts.Point} [point]
              *        The Point object if the crosshair snaps to points.
              *
-             * @fires Highcharts.ColorAxis#event:afterDrawCrosshair
-             * @fires Highcharts.ColorAxis#event:drawCrosshair
+             * @emits Highcharts.ColorAxis#event:afterDrawCrosshair
+             * @emits Highcharts.ColorAxis#event:drawCrosshair
              */
             ColorAxis.prototype.drawCrosshair = function (e, point) {
                 var axis = this;
@@ -1440,7 +1444,7 @@
                             setState: noop,
                             isDataClass: true,
                             setVisible: function () {
-                                vis = axis.visible = !vis;
+                                this.visible = vis = axis.visible = !vis;
                                 axis.series.forEach(function (series) {
                                     series.points.forEach(function (point) {
                                         if (point.dataClass === i) {

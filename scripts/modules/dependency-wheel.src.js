@@ -1,5 +1,5 @@
 /**
- * @license Highcharts JS v9.2.2 (2021-08-24)
+ * @license Highcharts JS v10.2.1 (2022-08-29)
  *
  * Dependency wheel module
  *
@@ -7,7 +7,6 @@
  *
  * License: www.highcharts.com/license
  */
-'use strict';
 (function (factory) {
     if (typeof module === 'object' && module.exports) {
         factory['default'] = factory;
@@ -22,13 +21,23 @@
         factory(typeof Highcharts !== 'undefined' ? Highcharts : undefined);
     }
 }(function (Highcharts) {
+    'use strict';
     var _modules = Highcharts ? Highcharts._modules : {};
     function _registerModule(obj, path, args, fn) {
         if (!obj.hasOwnProperty(path)) {
             obj[path] = fn.apply(null, args);
+
+            if (typeof CustomEvent === 'function') {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        'HighchartsModuleLoaded',
+                        { detail: { path: path, module: obj[path] }
+                    })
+                );
+            }
         }
     }
-    _registerModule(_modules, 'Series/DependencyWheel/DependencyWheelPoint.js', [_modules['Mixins/Nodes.js'], _modules['Core/Series/SeriesRegistry.js'], _modules['Core/Utilities.js']], function (NodesMixin, SeriesRegistry, U) {
+    _registerModule(_modules, 'Series/DependencyWheel/DependencyWheelPoint.js', [_modules['Core/Series/SeriesRegistry.js'], _modules['Core/Utilities.js']], function (SeriesRegistry, U) {
         /* *
          *
          *  Dependency wheel module
@@ -56,8 +65,8 @@
                 d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
             };
         })();
-        var SankeySeries = SeriesRegistry.seriesTypes.sankey;
-        var extend = U.extend;
+        var SankeyPoint = SeriesRegistry.seriesTypes.sankey.prototype.pointClass;
+        var wrap = U.wrap;
         /* *
          *
          *  Class
@@ -96,22 +105,34 @@
              * @private
              */
             DependencyWheelPoint.prototype.getDataLabelPath = function (label) {
+                var _this = this;
                 var renderer = this.series.chart.renderer,
                     shapeArgs = this.shapeArgs,
                     upperHalf = this.angle < 0 || this.angle > Math.PI,
                     start = shapeArgs.start || 0,
                     end = shapeArgs.end || 0;
+                // First time
                 if (!this.dataLabelPath) {
-                    this.dataLabelPath = renderer
-                        .arc({
-                        open: true,
-                        longArc: Math.abs(Math.abs(start) - Math.abs(end)) < Math.PI ? 0 : 1
-                    })
-                        // Add it inside the data label group so it gets destroyed
-                        // with the label
-                        .add(label);
+                    // Destroy the path with the label
+                    wrap(label, 'destroy', function (proceed) {
+                        if (_this.dataLabelPath) {
+                            _this.dataLabelPath = _this.dataLabelPath.destroy();
+                        }
+                        return proceed.call(label);
+                    });
+                    // Subsequent times
                 }
-                this.dataLabelPath.attr({
+                else {
+                    this.dataLabelPath = this.dataLabelPath.destroy();
+                    delete this.dataLabelPath;
+                }
+                // All times
+                this.dataLabelPath = renderer
+                    .arc({
+                    open: true,
+                    longArc: Math.abs(Math.abs(start) - Math.abs(end)) < Math.PI ? 0 : 1
+                })
+                    .attr({
                     x: shapeArgs.x,
                     y: shapeArgs.y,
                     r: (shapeArgs.r +
@@ -119,7 +140,8 @@
                     start: (upperHalf ? start : end),
                     end: (upperHalf ? end : start),
                     clockwise: +upperHalf
-                });
+                })
+                    .add(renderer.defs);
                 return this.dataLabelPath;
             };
             DependencyWheelPoint.prototype.isValid = function () {
@@ -127,10 +149,7 @@
                 return true;
             };
             return DependencyWheelPoint;
-        }(SankeySeries.prototype.pointClass));
-        extend(DependencyWheelPoint.prototype, {
-            setState: NodesMixin.setNodeState
-        });
+        }(SankeyPoint));
         /* *
          *
          *  Default Export
@@ -139,7 +158,7 @@
 
         return DependencyWheelPoint;
     });
-    _registerModule(_modules, 'Series/DependencyWheel/DependencyWheelSeries.js', [_modules['Core/Animation/AnimationUtilities.js'], _modules['Series/DependencyWheel/DependencyWheelPoint.js'], _modules['Core/Globals.js'], _modules['Core/Series/SeriesRegistry.js'], _modules['Core/Utilities.js']], function (A, DependencyWheelPoint, H, SeriesRegistry, U) {
+    _registerModule(_modules, 'Series/DependencyWheel/DependencyWheelSeries.js', [_modules['Core/Animation/AnimationUtilities.js'], _modules['Series/DependencyWheel/DependencyWheelPoint.js'], _modules['Core/Globals.js'], _modules['Series/Sankey/SankeyColumnComposition.js'], _modules['Core/Series/SeriesRegistry.js'], _modules['Core/Utilities.js']], function (A, DependencyWheelPoint, H, SankeyColumnComposition, SeriesRegistry, U) {
         /* *
          *
          *  Dependency wheel module
@@ -244,7 +263,6 @@
             DependencyWheelSeries.prototype.createNode = function (id) {
                 var node = SankeySeries.prototype.createNode.call(this,
                     id);
-                node.index = this.nodes.length - 1;
                 /**
                  * Return the sum of incoming and outgoing links.
                  * @private
@@ -303,7 +321,8 @@
              * @private
              */
             DependencyWheelSeries.prototype.createNodeColumns = function () {
-                var columns = [this.createNodeColumn()];
+                var columns = [SankeyColumnComposition.compose([],
+                    this)];
                 this.nodes.forEach(function (node) {
                     node.column = 0;
                     columns[0].push(node);
@@ -366,7 +385,7 @@
                                         var angle = factor * top,
                                     x = Math.cos(startAngle + angle) * (innerR_1 + 1),
                                     y = Math.sin(startAngle + angle) * (innerR_1 + 1),
-                                    curveFactor = options.curveFactor;
+                                    curveFactor = options.curveFactor || 0;
                                     // The distance between the from and to node
                                     // along the perimeter. This affect how curved
                                     // the link is, so that links between neighbours
@@ -448,6 +467,20 @@
                 center: [null, null],
                 curveFactor: 0.6,
                 /**
+                 * Distance between the data label and the center of the node.
+                 *
+                 * @type      {number}
+                 * @default   0
+                 * @apioption plotOptions.dependencywheel.dataLabels.distance
+                 */
+                /**
+                 * Size of the wheel in pixel or percent relative to the canvas space.
+                 *
+                 * @type      {number|string}
+                 * @default   100%
+                 * @apioption plotOptions.dependencywheel.size
+                 */
+                /**
                  * The start angle of the dependency wheel, in degrees where 0 is up.
                  */
                 startAngle: 0
@@ -513,7 +546,7 @@
          *     }]
          *  ```
          *
-         * @type      {Array<*>}
+         * @type      {Array<Array<string,string,number>|*>}
          * @extends   series.sankey.data
          * @product   highcharts
          * @excluding outgoing, dataLabels

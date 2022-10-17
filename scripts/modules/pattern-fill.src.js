@@ -1,5 +1,5 @@
 /**
- * @license Highcharts JS v9.2.2 (2021-08-24)
+ * @license Highcharts JS v10.2.1 (2022-08-29)
  *
  * Module for adding patterns and images as point fills.
  *
@@ -8,7 +8,6 @@
  *
  * License: www.highcharts.com/license
  */
-'use strict';
 (function (factory) {
     if (typeof module === 'object' && module.exports) {
         factory['default'] = factory;
@@ -23,10 +22,20 @@
         factory(typeof Highcharts !== 'undefined' ? Highcharts : undefined);
     }
 }(function (Highcharts) {
+    'use strict';
     var _modules = Highcharts ? Highcharts._modules : {};
     function _registerModule(obj, path, args, fn) {
         if (!obj.hasOwnProperty(path)) {
             obj[path] = fn.apply(null, args);
+
+            if (typeof CustomEvent === 'function') {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        'HighchartsModuleLoaded',
+                        { detail: { path: path, module: obj[path] }
+                    })
+                );
+            }
         }
     }
     _registerModule(_modules, 'Extensions/PatternFill.js', [_modules['Core/Animation/AnimationUtilities.js'], _modules['Core/Chart/Chart.js'], _modules['Core/Globals.js'], _modules['Core/DefaultOptions.js'], _modules['Core/Series/Point.js'], _modules['Core/Series/Series.js'], _modules['Core/Renderer/SVG/SVGRenderer.js'], _modules['Core/Utilities.js']], function (A, Chart, H, D, Point, Series, SVGRenderer, U) {
@@ -45,6 +54,7 @@
         var animObject = A.animObject;
         var getOptions = D.getOptions;
         var addEvent = U.addEvent,
+            defined = U.defined,
             erase = U.erase,
             merge = U.merge,
             pick = U.pick,
@@ -95,7 +105,7 @@
          * @private
          * @function hashFromObject
          *
-         * @param {object} obj
+         * @param {Object} obj
          *        The javascript object to compute the hash from.
          *
          * @param {boolean} [preSeed=false]
@@ -167,6 +177,12 @@
                 if (!bBox.width || !bBox.height) {
                     pattern._width = 'defer';
                     pattern._height = 'defer';
+                    // Mark the pattern to be flipped later if upside down (#16810)
+                    var scaleY = this.series.chart.mapView &&
+                            this.series.chart.mapView.getSVGTransform().scaleY;
+                    if (defined(scaleY) && scaleY < 0) {
+                        pattern._inverted = true;
+                    }
                     return;
                 }
                 // Handle aspect ratio filling
@@ -242,7 +258,10 @@
             }, attribs;
             if (!id) {
                 this.idCounter = this.idCounter || 0;
-                id = 'highcharts-pattern-' + this.idCounter + '-' + (this.chartIndex || 0);
+                id = ('highcharts-pattern-' +
+                    this.idCounter +
+                    '-' +
+                    (this.chartIndex || 0));
                 ++this.idCounter;
             }
             if (this.forExport) {
@@ -265,6 +284,12 @@
                     x: options._x || options.x || 0,
                     y: options._y || options.y || 0
                 };
+            if (options._inverted) {
+                attrs.patternTransform = 'scale(1, -1)'; // (#16810)
+                if (options.patternTransform) {
+                    options.patternTransform += ' scale(1, -1)';
+                }
+            }
             if (options.patternTransform) {
                 attrs.patternTransform = options.patternTransform;
             }
@@ -357,10 +382,10 @@
                             !(point.shapeArgs &&
                                 point.shapeArgs.width &&
                                 point.shapeArgs.height)) {
-                            colorOptions.pattern._width =
-                                'defer';
-                            colorOptions.pattern._height =
-                                'defer';
+                            colorOptions
+                                .pattern._width = 'defer';
+                            colorOptions
+                                .pattern._height = 'defer';
                         }
                         else {
                             point.calculatePatternDimensions(colorOptions.pattern);
@@ -435,7 +460,7 @@
                 // Add it. This function does nothing if an element with this ID
                 // already exists.
                 this.addPattern(pattern, !this.forExport && pick(pattern.animation, this.globalAnimation, { duration: 100 }));
-                value = "url(" + this.url + "#" + (pattern.id + (this.forExport ? '-export' : '')) + ")";
+                value = "url(".concat(this.url, "#").concat(pattern.id + (this.forExport ? '-export' : ''), ")");
             }
             else {
                 // Not a full pattern definition, just add color
@@ -465,10 +490,10 @@
                         var colorOptions = point.options && point.options.color;
                         if (colorOptions &&
                             colorOptions.pattern) {
-                            colorOptions.pattern._width =
-                                'defer';
-                            colorOptions.pattern._height =
-                                'defer';
+                            colorOptions.pattern
+                                ._width = 'defer';
+                            colorOptions.pattern
+                                ._height = 'defer';
                         }
                     });
                 });
@@ -494,7 +519,10 @@
                             node.getAttribute('color') ||
                             node.getAttribute('stroke');
                     if (id) {
-                        var sanitizedId = id.replace(renderer.url, '').replace('url(#', '').replace(')', '');
+                        var sanitizedId = id
+                                .replace(renderer.url, '')
+                                .replace('url(#', '')
+                                .replace(')', '');
                         usedIds[sanitizedId] = true;
                     }
                 });

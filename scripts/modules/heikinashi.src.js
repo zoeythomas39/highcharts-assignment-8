@@ -1,5 +1,5 @@
 /**
- * @license Highstock JS v9.2.2 (2021-08-24)
+ * @license Highstock JS v10.2.1 (2022-08-29)
  *
  * HeikinAshi series type for Highcharts Stock
  *
@@ -7,7 +7,6 @@
  *
  * License: www.highcharts.com/license
  */
-'use strict';
 (function (factory) {
     if (typeof module === 'object' && module.exports) {
         factory['default'] = factory;
@@ -22,10 +21,20 @@
         factory(typeof Highcharts !== 'undefined' ? Highcharts : undefined);
     }
 }(function (Highcharts) {
+    'use strict';
     var _modules = Highcharts ? Highcharts._modules : {};
     function _registerModule(obj, path, args, fn) {
         if (!obj.hasOwnProperty(path)) {
             obj[path] = fn.apply(null, args);
+
+            if (typeof CustomEvent === 'function') {
+                window.dispatchEvent(
+                    new CustomEvent(
+                        'HighchartsModuleLoaded',
+                        { detail: { path: path, module: obj[path] }
+                    })
+                );
+            }
         }
     }
     _registerModule(_modules, 'Series/HeikinAshi/HeikinAshiPoint.js', [_modules['Core/Series/SeriesRegistry.js']], function (SeriesRegistry) {
@@ -172,7 +181,6 @@
              *
              * @function Highcharts.seriesTypes.heikinashi#getHeikinashiData
              *
-             * @return {void}
              *
              */
             HeikinAshiSeries.prototype.getHeikinashiData = function () {
@@ -197,7 +205,6 @@
             /**
              * @private
              * @function Highcarts.seriesTypes.heikinashi#init
-             * @return {void}
              */
             HeikinAshiSeries.prototype.init = function () {
                 _super.prototype.init.apply(this, arguments);
@@ -212,11 +219,13 @@
              * @param {Array<(number)>} dataPoint
              *        Current data point.
              *
-             * @return {void}
              *
              */
             HeikinAshiSeries.prototype.modifyFirstPointValue = function (dataPoint) {
-                var open = (dataPoint[0] + dataPoint[1] + dataPoint[2] + dataPoint[3]) / 4,
+                var open = (dataPoint[0] +
+                        dataPoint[1] +
+                        dataPoint[2] +
+                        dataPoint[3]) / 4,
                     close = (dataPoint[0] + dataPoint[3]) / 2;
                 this.heikiashiData.push([open, dataPoint[1], dataPoint[2], close]);
             };
@@ -232,12 +241,14 @@
              * @param {Array<(number)>} previousDataPoint
              *        Previous data point.
              *
-             * @return {void}
              *
              */
             HeikinAshiSeries.prototype.modifyDataPoint = function (dataPoint, previousDataPoint) {
                 var newOpen = (previousDataPoint[0] + previousDataPoint[3]) / 2,
-                    newClose = (dataPoint[0] + dataPoint[1] + dataPoint[2] + dataPoint[3]) / 4,
+                    newClose = (dataPoint[0] +
+                        dataPoint[1] +
+                        dataPoint[2] +
+                        dataPoint[3]) / 4,
                     newHigh = Math.max(dataPoint[1],
                     newClose,
                     newOpen),
@@ -271,8 +282,8 @@
         addEvent(HeikinAshiSeries, 'afterTranslate', function () {
             var series = this,
                 points = series.points,
-                heikiashiData = series.heikiashiData;
-            var cropStart = series.cropStart || 0;
+                heikiashiData = series.heikiashiData,
+                cropStart = series.cropStart || 0;
             // Reset the proccesed data.
             series.processedYData.length = 0;
             // Modify points.
@@ -306,7 +317,7 @@
         });
         /* *
          *
-         *  Prototype Properties
+         *  Class Prototype
          *
          * */
         HeikinAshiSeries.prototype.pointClass = HeikinAshiPoint;
