@@ -12,7 +12,7 @@ body {
   color: #000;
   font-family: 'Verdana', sans-serif;
   margin: 4rem;
-  /* note, this will not work for all page layouts */
+  /* note, this margin will NOT work for all page layouts */
 }
 
 /*  the #container div (below) holds ONE chart  */
